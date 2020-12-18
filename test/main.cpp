@@ -60,8 +60,8 @@ int main(int argc, char **argv) {
   matVec(mat, test, x);
 
   // The 'test' vect should be the same as b
-  cout << "Source norm = " << norm(b) << endl;
+  cout << "test routine source norm = " << norm(b) << endl;
   axpy(-1.0, test, b);
-  cout << "Residual norm = " << norm(b) << endl;
-  cout << "Solution norm = " << norm(x) << endl;  
+  cout << "test routine residual norm = " << norm(b) << endl;
+  cout << "test routine solution norm = " << norm(x) << endl;  
 }

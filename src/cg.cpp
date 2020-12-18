@@ -118,7 +118,7 @@ int cg(const std::vector<std::vector<Complex>> &mat, std::vector<Complex> &x, co
   std::vector<Complex> Ap(x.size(), 0.0);
 
   bool use_init_guess = false;
-  bool verbose = true;
+  bool verbose = false;
   int success = 0;
   int iter = 0;
   double eps = tol*tol;
@@ -155,11 +155,10 @@ int cg(const std::vector<std::vector<Complex>> &mat, std::vector<Complex> &x, co
     // temp contains original guess
     copy(temp, x);
     
-    if(verbose) {
-      cout << "using initial guess, |x0| = " << norm(temp)
-	   << ", |b| = " << bsqrt
-	   << ", |res| = " << norm(res) << endl;
-    }
+    cout << "using initial guess, |x0| = " << norm(temp)
+	 << ", |b| = " << bsqrt
+	 << ", |res| = " << norm(res) << endl;
+    
   } else {
     // no initial guess. Initial residual is the source.    
     copy(res, b);
@@ -186,7 +185,7 @@ int cg(const std::vector<std::vector<Complex>> &mat, std::vector<Complex> &x, co
     
     // Exit if new residual is small enough
     rsq_new = norm2(res);
-    if (verbose) printf("CG iter %d, rsq = %g\n", iter+1, rsq_new);
+    printf("CG iter %d, rsq = %g\n", iter+1, rsq_new);
     if (rsq_new < eps*bnorm) {
       rsq = rsq_new;
       break;
@@ -215,17 +214,15 @@ int cg(const std::vector<std::vector<Complex>> &mat, std::vector<Complex> &x, co
   axpy(1.0, temp, x);  
   // x now contains the solution to the RHS b.
   
-  if(verbose) {    
-    //Sanity
-    cout << "source norm = " << norm(b) << endl;
-    cout << "sol norm = " << norm(x) << endl;
-    
-    matVec(mat, temp, x);
-    axpy(-1.0, temp, b, res);
-    double truersq = norm2(res);
-    printf("CG: Converged iter = %d, rsq = %.16e, truersq = %.16e\n", iter+1, rsq, truersq/(bsqrt*bsqrt));
-  }
-  printf("CG: Converged iter = %d\n", success);  
+  //Sanity
+  cout << "source norm = " << norm(b) << endl;
+  cout << "sol norm = " << norm(x) << endl;
+  
+  matVec(mat, temp, x);
+  axpy(-1.0, temp, b, res);
+  double truersq = norm2(res);
+  printf("CG: Converged iter = %d, rsq = %.16e, truersq = %.16e\n", iter+1, rsq, truersq/(bsqrt*bsqrt));
+  
   return success;    
 }
 

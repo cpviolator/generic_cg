@@ -1,5 +1,7 @@
 #include <cg.h>
 
+// Basic Linear Algebra Subroutines
+
 // Zero vector
 void zero(std::vector<Complex> &x) {
 #pragma omp parallel for
@@ -18,11 +20,10 @@ void ax(double a, std::vector<Complex> &x) {
   for(int i=0; i<(int)x.size(); i++) x[i] = a*x[i];
 }
 
-
-// Inner product
+// Complex inner product
 Complex cDotProd(const std::vector<Complex> &x, const std::vector<Complex> &y) {
   Complex prod = 0.0;
-  //#pragma omp parallel for reduction(+:prod)
+#pragma omp parallel for reduction(+:prod)
   for(int i=0; i<(int)x.size(); i++) prod += conj(x[i]) * y[i];
   return prod;
 }
@@ -30,11 +31,10 @@ Complex cDotProd(const std::vector<Complex> &x, const std::vector<Complex> &y) {
 // Inner product
 Complex dotProd(const std::vector<Complex> &x, const std::vector<Complex> &y) {
   Complex prod = 0.0;
-  //#pragma omp parallel for reduction(+:prod)
+#pragma omp parallel for reduction(+:prod)
   for(int i=0; i<(int)x.size(); i++) prod += x[i] * y[i];
   return prod;
 }
-
 
 // Norm squared
 double norm2(const std::vector<Complex> &x) { 
@@ -49,28 +49,10 @@ double norm(const std::vector<Complex> &a) {
   return sqrt(real(norm2(a)));
 }
 
-// Norm 
+// Normalise the vector
 void normalise(std::vector<Complex> &a) {
   double nrm = sqrt(real(norm2(a)));
   ax(1/nrm, a);
-}
-
-// caxpby
-void caxpby(const Complex a, const std::vector<Complex> &x, const Complex b, std::vector<Complex> &y) {
-#pragma omp parallel for
-  for(int i=0; i<(int)x.size(); i++) {
-    y[i] *= b;
-    y[i] += a*x[i];
-  }
-}
-
-// axpby
-void axpby(const double a, const std::vector<Complex> &x, const double b, std::vector<Complex> &y) {
-#pragma omp parallel for
-  for(int i=0; i<(int)x.size(); i++) {
-    y[i] *= b;
-    y[i] += a*x[i];
-  }
 }
 
 // axpy
@@ -82,7 +64,7 @@ void axpy(const double a, const std::vector<Complex> &x, const std::vector<Compl
   }
 }
 
-// axpy
+// axpy (in place)
 void axpy(const double a, const std::vector<Complex> &x, std::vector<Complex> &y) {
 #pragma omp parallel for
   for(int i=0; i<(int)x.size(); i++) {    
@@ -90,9 +72,10 @@ void axpy(const double a, const std::vector<Complex> &x, std::vector<Complex> &y
   }
 }
 
-void matVec(const std::vector<std::vector<Complex>> &mat, std::vector<Complex> &result, const std::vector<Complex> &vec) {
+void matVec(const bool laplace_mat, const std::vector<std::vector<Complex>> &mat, std::vector<Complex> &result, const std::vector<Complex> &vec) {
 
   // Sanity checks
+  int N = vec.size();
   if(result.size() != vec.size()) {
     cout << "ERROR: Vectors passed to mat vec of unequal size" << endl;
     exit(0);
@@ -102,15 +85,26 @@ void matVec(const std::vector<std::vector<Complex>> &mat, std::vector<Complex> &
     cout << "ERROR: matrix passed to mat vec of unequal size to vector" << endl;
     exit(0);
   }
-
+  
   // Apply matvec
   for(unsigned int i=0; i<vec.size(); i++) {
-    result[i] = dotProd(mat[i], vec);
+    if(laplace_mat) {
+      // Take advantage of the sparse matrix pattern
+      result[i] = 2.0*vec[i];
+      if(i > 0) result[i] += vec[(i-1+N)%N];
+      if(i < N-1) result[i] += vec[(i+1)%N];
+    }
+    else {
+      // The matrix is dense so we must do N
+      // dot products
+      result[i] = dotProd(mat[i], vec);
+    }
   }
 }
 
-int cg(const std::vector<std::vector<Complex>> &mat, std::vector<Complex> &x, const std::vector<Complex> &b, const double tol, const int maxiter) {
-  
+// The Conjugate gradient routine
+int cg(const bool laplace_mat, const std::vector<std::vector<Complex>> &mat, std::vector<Complex> &x, const std::vector<Complex> &b, const double tol, const int maxiter) {
+
   // Temp objects
   std::vector<Complex> temp(x.size(), 0.0);
   std::vector<Complex> res(x.size(), 0.0);
@@ -125,7 +119,7 @@ int cg(const std::vector<std::vector<Complex>> &mat, std::vector<Complex> &x, co
   double rsq_new, rsq;
   double alpha, beta;
   double denom;
-  
+
   // Find norm of rhs.
   double bnorm = norm2(b);
   double bsqrt = sqrt(bnorm);
@@ -141,18 +135,17 @@ int cg(const std::vector<std::vector<Complex>> &mat, std::vector<Complex> &x, co
   
   // compute initial residual
   //---------------------------------------  
-  if (norm2(x) > 0.0) {    
-    
-    // initial guess supplied: res = b - A*x0
+  if (norm2(x) > 0.0) {        
+    // Initial guess supplied: res = b - A*x0
     use_init_guess = true;
-    matVec(mat, temp, x);    
+    matVec(laplace_mat, mat, temp, x);    
     axpy(-1.0, temp, b, res);
     
     // Update bnorm
     bnorm = norm2(res);
     bsqrt = sqrt(bnorm);
 
-    // temp contains original guess
+    // temp contains the original guess
     copy(temp, x);
     
     cout << "using initial guess, |x0| = " << norm(temp)
@@ -160,7 +153,7 @@ int cg(const std::vector<std::vector<Complex>> &mat, std::vector<Complex> &x, co
 	 << ", |res| = " << norm(res) << endl;
     
   } else {
-    // no initial guess. Initial residual is the source.    
+    // No initial guess supplied. Initial residual is the source.    
     copy(res, b);
     zero(temp);
   }
@@ -175,16 +168,18 @@ int cg(const std::vector<std::vector<Complex>> &mat, std::vector<Complex> &x, co
   for (iter = 0; iter < maxiter; iter++) {
     
     // Compute Ap.
-    matVec(mat, Ap, p);
-    
-    denom = (cDotProd(p, Ap)).real();
+    // This part is usually the bottle neck in any program
+    // and we work very hard to optimise it!
+    matVec(laplace_mat, mat, Ap, p);
+
+    denom = (cDotProd(p, Ap)).real(); // This is a reduction
     alpha = rsq/denom;
     
     axpy( alpha, p,    x);
     axpy(-alpha, Ap, res);
     
     // Exit if new residual is small enough
-    rsq_new = norm2(res);
+    rsq_new = norm2(res); // This is a reduction
     printf("CG iter %d, rsq = %g\n", iter+1, rsq_new);
     if (rsq_new < eps*bnorm) {
       rsq = rsq_new;
@@ -218,7 +213,7 @@ int cg(const std::vector<std::vector<Complex>> &mat, std::vector<Complex> &x, co
   cout << "source norm = " << norm(b) << endl;
   cout << "sol norm = " << norm(x) << endl;
   
-  matVec(mat, temp, x);
+  matVec(laplace_mat, mat, temp, x);
   axpy(-1.0, temp, b, res);
   double truersq = norm2(res);
   printf("CG: Converged iter = %d, rsq = %.16e, truersq = %.16e\n", iter+1, rsq, truersq/(bsqrt*bsqrt));

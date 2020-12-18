@@ -44,10 +44,10 @@ void axpby(const double a, const std::vector<Complex> &x, const std::vector<Comp
 void axpy(const double a, const std::vector<Complex> &x, std::vector<Complex> &y);
 
 // matvec
-void matVec(const std::vector<std::vector<Complex>> &mat, std::vector<Complex> &result, const std::vector<Complex> &vec);
+void matVec(const bool laplace_mat, const std::vector<std::vector<Complex>> &mat, std::vector<Complex> &result, const std::vector<Complex> &vec);
 
 // CG op
-int cg(const std::vector<std::vector<Complex>> &mat, std::vector<Complex> &x, const std::vector<Complex> &b, const double eps, const int maxiter);
+int cg(const bool laplace_mat, const std::vector<std::vector<Complex>> &mat, std::vector<Complex> &x, const std::vector<Complex> &b, const double eps, const int maxiter);
 
 // Simple function to test pythin linkage
 void python_test();

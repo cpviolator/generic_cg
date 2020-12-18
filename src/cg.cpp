@@ -136,15 +136,11 @@ int cg(const bool laplace_mat, const std::vector<std::vector<Complex>> &mat, std
   // compute initial residual
   //---------------------------------------  
   if (norm2(x) > 0.0) {        
-    // Initial guess supplied: res = b - A*x0
+    // Initial guess supplied: res = b - A*x0    
     use_init_guess = true;
     matVec(laplace_mat, mat, temp, x);    
     axpy(-1.0, temp, b, res);
     
-    // Update bnorm
-    bnorm = norm2(res);
-    bsqrt = sqrt(bnorm);
-
     // temp contains the original guess
     copy(temp, x);
     

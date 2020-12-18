@@ -46,23 +46,24 @@ int main(int argc, char **argv) {
 
   // The row major matrix
   std::vector<std::vector<Complex>> mat(N, std::vector<Complex> (N, 0.0));  
-  
-  // Use Eigen to generate a random matrix
-  MatrixXcd ref = MatrixXcd::Random(N, N);
-  
-  // Copy the Eigen matrix into the array
-  for(int i=0; i<N; i++) {
-    for(int j=0; j<N; j++) {
 
-      // If we are using the laplace matrix, construct it
-      // else populate the matrix with the random elements
-      // from eigen
-      mat[i][j] = ref(i,j) + conj(ref(j, i));
-      if(i == j) mat[i][j] += diag;
+  if(!laplace_mat) {
+    // Use Eigen to generate a random matrix
+    MatrixXcd ref = MatrixXcd::Random(N, N);  
+    // Copy the Eigen matrix into the array
+    for(int i=0; i<N; i++) {
+      for(int j=0; j<N; j++) {
+	
+	// Populate the matrix with the random elements from eigen
+	mat[i][j] = ref(i,j) + conj(ref(j, i));
+	// Add the diagonal constant to ensure positive semi-definite
+	if(i == j) mat[i][j] += diag;
+      }
     }
   }
   
   // Pass the row major matrix, guess, source, and constraints to CG
+  // The initial guess is stored in x, the result is passed back in x
   normalise(b);
   cg(laplace_mat, mat, x, b, tol, maxiter);
   
@@ -74,5 +75,30 @@ int main(int argc, char **argv) {
   cout << "test routine source norm = " << norm(b) << endl;
   axpy(-1.0, test, b);
   cout << "test routine residual norm = " << norm(b) << endl;
-  cout << "test routine solution norm = " << norm(x) << endl;  
+  cout << "test routine solution norm = " << norm(x) << endl;
+
+  // Test that the CG initial guess is working. Modify the matrix
+  // slightly and use the previous solution as a guess
+
+  if(!laplace_mat) {
+    
+    // Modify the diagonal constant slightly
+    for(int i=0; i<N; i++) mat[i][i] += 1.0*diag/100;
+    
+    // Repeat the problem
+    zero(b);
+    b[0] = 1.0;
+    normalise(b);
+    cg(laplace_mat, mat, x, b, tol, maxiter);
+    
+    // Test for correcteness
+    matVec(laplace_mat, mat, test, x);
+    
+    // The 'test' vector should be the same as b
+    cout << "test routine source norm = " << norm(b) << endl;
+    axpy(-1.0, test, b);
+    cout << "test routine residual norm = " << norm(b) << endl;
+    cout << "test routine solution norm = " << norm(x) << endl;
+  }
+  
 }

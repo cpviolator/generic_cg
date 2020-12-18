@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
   // Problem parameters
   int N = 1024; // Will use an NxN matrix
   
-  int maxiter = 100000; // The maximul allowed CG iterations
+  int maxiter = 100000; // The maximal allowed CG iterations
   
   double tol = 1e-10; // The tolerance on the quality of the solution vector
   
